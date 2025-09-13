@@ -5,9 +5,11 @@ from functools import wraps
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 
-STORAGE_PATH = os.environ.get("STORAGE_PATH", "/data/uploads")
+# Use a writable directory path for Render
+STORAGE_PATH = os.environ.get("STORAGE_PATH", "/tmp/data/uploads")
 SECRET_TOKEN = os.environ.get("SECRET_TOKEN", "changeme")  # set in Render env
 
+# Ensure the storage directory exists
 os.makedirs(STORAGE_PATH, exist_ok=True)
 
 def require_token(f):
