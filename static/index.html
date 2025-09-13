@@ -1,69 +1,45 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <title>Secure Data Viewer</title>
-  <style>
-    body{font-family:Arial,Helvetica,sans-serif;margin:2rem;background:#f7f7f7}
-    table{border-collapse:collapse;width:600px;background:#fff}
-    th,td{padding:8px;border:1px solid #eee}
-    #uploadRow{margin-top:1rem}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Website</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f4f4f4;
+        }
+        nav {
+            background-color: #333;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin-right: 15px;
+            font-weight: bold;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+    </style>
 </head>
 <body>
-  <h2>Uploaded Files</h2>
-  <div>
-    <label>Token: <input id="token" type="password" placeholder="Bearer token"></label>
-    <button id="refresh">Refresh</button>
-  </div>
-
-  <div id="uploadRow">
-    <input type="file" id="fileInput">
-    <button id="uploadBtn">Upload</button>
-  </div>
-
-  <table id="tbl" style="margin-top:12px">
-    <thead><tr><th>Filename</th><th>Action</th></tr></thead>
-    <tbody></tbody>
-  </table>
-
-<script>
-const API_BASE = ""; // same origin if you deploy backend + static together
-function tokenHeader() {
-  const t = document.getElementById("token").value;
-  return { "Authorization": "Bearer " + t };
-}
-
-async function load() {
-  const res = await fetch(API_BASE + "/files", { headers: tokenHeader() });
-  if(!res.ok){ alert("Error: " + res.status); return; }
-  const json = await res.json();
-  const tbody = document.querySelector("#tbl tbody");
-  tbody.innerHTML = "";
-  json.files.forEach(fn => {
-    const tr = document.createElement("tr");
-    const link = `${API_BASE}/files/${encodeURIComponent(fn)}`;
-    tr.innerHTML = `<td>${fn}</td>
-      <td><a target="_blank" href="${link}">View</a></td>`;
-    tbody.appendChild(tr);
-  });
-}
-
-document.getElementById("refresh").addEventListener("click", load);
-
-document.getElementById("uploadBtn").addEventListener("click", async () => {
-  const input = document.getElementById("fileInput");
-  if(!input.files.length) { alert("Choose a file"); return; }
-  const fd = new FormData();
-  fd.append("file", input.files[0]);
-  const res = await fetch(API_BASE + "/upload", {
-    method: "POST",
-    headers: tokenHeader(),
-    body: fd
-  });
-  if (res.ok) { alert("Uploaded"); load(); }
-  else { const j = await res.json().catch(()=>null); alert("Upload failed: " + (j?.error || res.status)); }
-});
-</script>
+    <nav>
+        <a href="/">Home</a>
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+    </nav>
+    
+    <div class="container">
+        <h1>Welcome to My Website</h1>
+        <p>This is a simple Flask website hosted on Render.</p>
+        <p>You can customize this page with your own content.</p>
+    </div>
 </body>
 </html>
