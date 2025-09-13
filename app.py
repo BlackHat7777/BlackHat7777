@@ -1,84 +1,76 @@
-import os
-import requests
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from functools import wraps
-import ssl
-import json
+import os
+from datetime import timedelta
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.permanent_session_lifetime = timedelta(hours=1)  # Session timeout
 
-# Environment variables for secure connection
-KALI_API_URL = os.environ.get('KALI_API_URL', 'https://your-kali-ip-or-domain/api')
-API_KEY = os.environ.get('API_KEY', 'your-secret-api-key')
-VERIFY_SSL = os.environ.get('VERIFY_SSL', 'True').lower() == 'true'
+# Simple user database (replace with real database in production)
+users = {
+    'admin': {'password': 'admin123', 'role': 'admin'},
+    'user': {'password': 'user123', 'role': 'user'}
+}
 
-# Custom SSL context (if using self-signed certificates on Kali)
-ssl_context = ssl.create_default_context()
-if not VERIFY_SSL:
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
-
-def require_token(f):
+def login_required(f):
     @wraps(f)
-    def wrapper(*args, **kwargs):
-        auth = request.headers.get("Authorization", "")
-        if not auth.startswith("Bearer "):
-            return jsonify({"error": "missing bearer token"}), 401
-        token = auth.split(" ", 1)[1]
-        if token != API_KEY:
-            return jsonify({"error": "invalid token"}), 403
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session:
+            flash('Please log in to access this page.', 'warning')
+            return redirect(url_for('login'))
         return f(*args, **kwargs)
-    return wrapper
+    return decorated_function
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    if 'username' in session:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
 
-@app.route('/api/data', methods=['GET'])
-@require_token
-def get_data():
-    """Retrieve data from Kali Linux API"""
-    try:
-        # Make request to Kali API
-        headers = {
-            'User-Agent': 'Flask-App/1.0',
-            'Accept': 'application/json'
-        }
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if 'username' in session:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        remember_me = request.form.get('remember_me')
         
-        response = requests.get(
-            f"{KALI_API_URL}/data",
-            headers=headers,
-            verify=VERIFY_SSL,
-            timeout=30
-        )
-        
-        if response.status_code == 200:
-            return jsonify({
-                "status": "success",
-                "data": response.json()
-            })
-        else:
-            return jsonify({
-                "status": "error",
-                "message": f"Kali API returned status {response.status_code}",
-                "response": response.text
-            }), response.status_code
+        # Check if user exists and password matches
+        if username in users and users[username]['password'] == password:
+            session['username'] = username
+            session['role'] = users[username]['role']
             
-    except requests.exceptions.RequestException as e:
-        return jsonify({
-            "status": "error",
-            "message": f"Connection error: {str(e)}"
-        }), 500
+            if remember_me:
+                session.permanent = True
+            else:
+                session.permanent = False
+                
+            flash('Login successful!', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid username or password', 'danger')
+    
+    return render_template('login.html')
 
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        "status": "ok",
-        "service": "flask-data-retriever",
-        "version": "1.0"
-    })
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('You have been logged out successfully.', 'info')
+    return redirect(url_for('login'))
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    return render_template('dashboard.html', username=session.get('username'))
+
+@app.route('/profile')
+@login_required
+def profile():
+    return render_template('profile.html', username=session.get('username'), role=session.get('role'))
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, ssl_context='adhoc' if os.environ.get('FLASK_ENV') == 'development' else None)
+    app.run(host="0.0.0.0", port=port)
